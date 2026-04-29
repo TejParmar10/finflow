@@ -62,10 +62,9 @@ export function FileUploader({ month, idToken, onParsed, existingExpenses }: Fil
         const base64 = btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(''))
         body = { fileContent: base64, fileType: 'pdf', month }
       } else {
+        // Send raw CSV text — server auto-detects HDFC vs Google Pay format
         const text = await file.text()
-        const Papa = (await import('papaparse')).default
-        const result = Papa.parse(text, { header: true, skipEmptyLines: true })
-        body = { fileContent: JSON.stringify(result.data), fileType: 'csv', month }
+        body = { fileContent: text, fileType: 'csv', month }
       }
 
       setProgress('Analysing transactions with AI...')

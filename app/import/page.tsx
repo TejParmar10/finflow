@@ -106,13 +106,13 @@ export default function ImportPage() {
     <div className="max-w-4xl mx-auto py-6 space-y-6">
       <div>
         <h1 className="font-serif text-3xl text-text-primary">Import Bank Statement</h1>
-        <p className="text-sm text-text-muted mt-1">HDFC Bank · PDF or CSV</p>
+        <p className="text-sm text-text-muted mt-1">HDFC Bank · Google Pay · PDF or CSV</p>
       </div>
 
       <div className="flex items-start gap-3 bg-[rgba(78,205,196,0.08)] border border-[rgba(78,205,196,0.15)] rounded-xl px-4 py-3">
         <Info size={16} className="text-accent-teal mt-0.5 flex-shrink-0" />
         <p className="text-xs text-text-muted">
-          Your statement is processed securely and never stored on our servers. Only the parsed transactions are saved to your account.
+          Supports HDFC Bank and Google Pay statements (PDF or CSV). Your statement is processed securely and never stored on our servers.
         </p>
       </div>
 
