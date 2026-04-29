@@ -6,14 +6,14 @@ import { format, subMonths } from 'date-fns'
 import { useAuthContext } from '@/components/AuthProvider'
 import { useBudget } from '@/hooks/useBudget'
 import { useExpenses } from '@/hooks/useExpenses'
-import { MonthlyReport } from '@/types'
+import { getBudget } from '@/lib/firestore'
+import { MonthlyReport, CreditScoreData } from '@/types'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { CreditScoreArc } from '@/components/dashboard/CreditScoreArc'
 import { AIChat } from '@/components/chat/AIChat'
 import { FileText, Download, CheckCircle, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { CreditScoreData } from '@/types'
 
 function getMonthOptions() {
   return Array.from({ length: 12 }, (_, i) => {
@@ -33,13 +33,16 @@ function scoreToData(score: number): CreditScoreData {
 export default function ReportPage() {
   const { user } = useAuthContext()
   const router = useRouter()
-  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'))
+  const currentMonth = format(new Date(), 'yyyy-MM')
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth)
   const [report, setReport] = useState<MonthlyReport | null>(null)
   const [generating, setGenerating] = useState(false)
   const [idToken, setIdToken] = useState('')
-  const currentMonth = format(new Date(), 'yyyy-MM')
-  const { budget } = useBudget(user?.uid ?? null)
-  const { expenses } = useExpenses(user?.uid ?? null, currentMonth)
+
+  // Load data for the selected month
+  const { budget: currentBudget } = useBudget(user?.uid ?? null)
+  const { expenses: currentExpenses } = useExpenses(user?.uid ?? null, currentMonth)
+  const { expenses: selectedExpenses } = useExpenses(user?.uid ?? null, selectedMonth)
 
   useEffect(() => { if (!user) router.replace('/') }, [user, router])
   useEffect(() => { user?.getIdToken().then(setIdToken) }, [user])
@@ -48,10 +51,19 @@ export default function ReportPage() {
     if (!user?.uid || !idToken) return
     setGenerating(true)
     try {
+      // Fetch budget for selected month (may differ from current month)
+      const budget = selectedMonth === currentMonth
+        ? currentBudget
+        : await getBudget(user.uid, selectedMonth)
+
       const res = await fetch('/api/ai/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({ uid: user.uid, month: selectedMonth }),
+        body: JSON.stringify({
+          month: selectedMonth,
+          budget,
+          expenses: selectedExpenses,
+        }),
       })
       if (!res.ok) throw new Error('Report generation failed')
       setReport(await res.json())
@@ -70,7 +82,10 @@ export default function ReportPage() {
         import('@/components/report/ReportDocument'),
         import('react'),
       ])
-      const element = React.createElement(ReportDocument, { report, userName: user.displayName ?? '' })
+      const element = React.createElement(ReportDocument, {
+        report,
+        userName: user.displayName ?? '',
+      })
       const blob = await pdf(element as any).toBlob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -184,20 +199,24 @@ export default function ReportPage() {
 
             <Card>
               <h3 className="text-sm font-semibold text-text-primary mb-3">Spending Breakdown</h3>
-              <div className="space-y-3">
-                {(report.categoryBreakdown ?? []).map(({ category, amount, percent }) => (
-                  <div key={category} className="flex items-center gap-3">
-                    <span className="text-sm text-text-primary capitalize w-28">{category}</span>
-                    <div className="flex-1 h-2 bg-[rgba(255,255,255,0.06)] rounded-full">
-                      <div className="h-full bg-accent-teal rounded-full" style={{ width: `${percent}%` }} />
+              {(report.categoryBreakdown ?? []).length === 0 ? (
+                <p className="text-sm text-text-muted">No spending data for this month.</p>
+              ) : (
+                <div className="space-y-3">
+                  {report.categoryBreakdown.map(({ category, amount, percent }) => (
+                    <div key={category} className="flex items-center gap-3">
+                      <span className="text-sm text-text-primary capitalize w-28">{category}</span>
+                      <div className="flex-1 h-2 bg-[rgba(255,255,255,0.06)] rounded-full">
+                        <div className="h-full bg-accent-teal rounded-full" style={{ width: `${percent}%` }} />
+                      </div>
+                      <span className="text-xs text-text-muted w-8 text-right">{percent}%</span>
+                      <span className="text-sm font-medium text-text-primary w-28 text-right">
+                        ₹{amount.toLocaleString('en-IN')}
+                      </span>
                     </div>
-                    <span className="text-xs text-text-muted w-8 text-right">{percent}%</span>
-                    <span className="text-sm font-medium text-text-primary w-28 text-right">
-                      ₹{amount.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </Card>
 
             <Card>
@@ -218,7 +237,7 @@ export default function ReportPage() {
       </div>
 
       {idToken && (
-        <AIChat idToken={idToken} budget={budget} expenses={expenses} month={currentMonth} />
+        <AIChat idToken={idToken} budget={currentBudget} expenses={currentExpenses} month={currentMonth} />
       )}
     </>
   )
