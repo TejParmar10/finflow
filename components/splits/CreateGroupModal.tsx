@@ -47,7 +47,8 @@ export function CreateGroupModal({ currentUid, currentDisplayName, currentPhotoU
       })
       toast.success('Group created!')
       onClose()
-    } catch {
+    } catch (e) {
+      console.error('[CreateGroup] error:', e)
       toast.error('Failed to create group')
     } finally {
       setLoading(false)

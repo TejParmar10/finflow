@@ -138,9 +138,15 @@ export async function getAllExpensesForMonths(uid: string, months: string[]): Pr
 
 // ─── Splits ──────────────────────────────────────────────────────────────────
 
+// Remove undefined fields recursively — Firestore rejects undefined values
+function stripUndefined<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj))
+}
+
 export async function createSplitGroup(data: Omit<SplitGroup, 'id'>): Promise<string> {
   const ref = collection(db, 'splitGroups')
-  const docRef = await addDoc(ref, { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
+  const clean = stripUndefined(data)
+  const docRef = await addDoc(ref, { ...clean, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
   return docRef.id
 }
 
