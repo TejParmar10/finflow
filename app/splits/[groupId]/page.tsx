@@ -5,7 +5,9 @@ import { useRouter, useParams } from 'next/navigation'
 import { format } from 'date-fns'
 import { Timestamp } from 'firebase/firestore'
 import { useAuthContext } from '@/components/AuthProvider'
-import { getSplitGroup, getSplitExpenses, deleteSplitGroup, addMembersToGroup, updateUserUpiId } from '@/lib/firestore'
+import { getSplitExpenses, deleteSplitGroup, addMembersToGroup, updateUserUpiId } from '@/lib/firestore'
+import { doc, onSnapshot } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 import { useSplits } from '@/hooks/useSplits'
 import { useBudget } from '@/hooks/useBudget'
 import { useExpenses } from '@/hooks/useExpenses'
@@ -50,9 +52,18 @@ export default function GroupPage() {
 
   useEffect(() => {
     if (!groupId) return
-    getSplitGroup(groupId).then((g) => { setGroup(g); setLoadingGroup(false) })
-    const unsub = getSplitExpenses(groupId, setGroupExpenses)
-    return unsub
+    // Live listener — updates instantly when any member's UPI changes
+    const groupRef = doc(db, 'splitGroups', groupId)
+    const unsubGroup = onSnapshot(
+      groupRef,
+      (snap) => {
+        if (snap.exists()) setGroup({ ...snap.data(), id: snap.id } as SplitGroup)
+        setLoadingGroup(false)
+      },
+      (err) => { console.error('[groupPage] group snapshot error:', err.code); setLoadingGroup(false) }
+    )
+    const unsubExpenses = getSplitExpenses(groupId, setGroupExpenses)
+    return () => { unsubGroup(); unsubExpenses() }
   }, [groupId])
 
   const handleDelete = async () => {
@@ -71,9 +82,7 @@ export default function GroupPage() {
     if (!groupId || newMembers.length === 0) return
     setSavingMembers(true)
     try {
-      await addMembersToGroup(groupId, newMembers)
-      const updated = await getSplitGroup(groupId)
-      setGroup(updated)
+      await addMembersToGroup(groupId, newMembers) // onSnapshot auto-refreshes group
       setNewMembers([])
       setShowAddMembers(false)
       toast.success(`${newMembers.length} member${newMembers.length > 1 ? 's' : ''} added!`)
@@ -87,10 +96,7 @@ export default function GroupPage() {
 
   const handleSaveUpi = async () => {
     if (!user?.uid || !upiInput.trim()) { toast.error('Enter your UPI ID'); return }
-    await updateUserUpiId(user.uid, upiInput) // syncs to all groups automatically
-    // Refresh group so BalanceSummary gets the updated member UPI
-    const updated = await getSplitGroup(groupId)
-    setGroup(updated)
+    await updateUserUpiId(user.uid, upiInput) // syncs to all groups → onSnapshot auto-refreshes
     toast.success('UPI ID saved!')
     setShowUpiPrompt(false)
   }
