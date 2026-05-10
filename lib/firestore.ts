@@ -43,12 +43,15 @@ export function getExpenses(
 ): Unsubscribe {
   const ref = collection(db, 'expenses', uid, 'records')
   const q = query(ref, orderBy('createdAt', 'desc'))
-  return onSnapshot(q, (snap) => {
-    const all = snap.docs
-      .map((d) => ({ ...(d.data() as Omit<Expense, 'id'>), id: d.id } as Expense))
-      .filter((e) => e.month === month)
-    callback(all)
-  })
+  return onSnapshot(q,
+    (snap) => {
+      const all = snap.docs
+        .map((d) => ({ ...(d.data() as Omit<Expense, 'id'>), id: d.id } as Expense))
+        .filter((e) => e.month === month)
+      callback(all)
+    },
+    (err) => console.error('[firestore] getExpenses snapshot error:', err.code, err.message)
+  )
 }
 
 export async function deleteExpense(uid: string, expenseId: string): Promise<void> {
@@ -65,10 +68,13 @@ export async function saveGoal(uid: string, data: Omit<Goal, 'id'>): Promise<str
 export function getGoals(uid: string, callback: (goals: Goal[]) => void): Unsubscribe {
   const ref = collection(db, 'goals', uid, 'items')
   const q = query(ref, orderBy('createdAt', 'desc'))
-  return onSnapshot(q, (snap) => {
-    const goals = snap.docs.map((d) => ({ ...(d.data() as Omit<Goal, 'id'>), id: d.id } as Goal))
-    callback(goals)
-  })
+  return onSnapshot(q,
+    (snap) => {
+      const goals = snap.docs.map((d) => ({ ...(d.data() as Omit<Goal, 'id'>), id: d.id } as Goal))
+      callback(goals)
+    },
+    (err) => console.error('[firestore] getGoals snapshot error:', err.code, err.message)
+  )
 }
 
 export async function updateGoalProgress(
@@ -147,12 +153,15 @@ export async function getSplitGroup(groupId: string): Promise<SplitGroup | null>
 export function getUserGroups(uid: string, callback: (groups: SplitGroup[]) => void): Unsubscribe {
   const ref = collection(db, 'splitGroups')
   const q = query(ref, orderBy('updatedAt', 'desc'))
-  return onSnapshot(q, (snap) => {
-    const groups = snap.docs
-      .map((d) => ({ ...d.data(), id: d.id } as SplitGroup))
-      .filter((g) => g.members?.some((m) => m.uid === uid) || g.createdBy === uid)
-    callback(groups)
-  })
+  return onSnapshot(q,
+    (snap) => {
+      const groups = snap.docs
+        .map((d) => ({ ...d.data(), id: d.id } as SplitGroup))
+        .filter((g) => g.members?.some((m) => m.uid === uid) || g.createdBy === uid)
+      callback(groups)
+    },
+    (err) => console.error('[firestore] getUserGroups snapshot error:', err.code, err.message)
+  )
 }
 
 export async function addSplitExpense(groupId: string, data: Omit<SplitExpense, 'id'>): Promise<string> {
@@ -171,9 +180,10 @@ export async function addSplitExpense(groupId: string, data: Omit<SplitExpense, 
 export function getSplitExpenses(groupId: string, callback: (expenses: SplitExpense[]) => void): Unsubscribe {
   const ref = collection(db, 'splitExpenses', groupId, 'items')
   const q = query(ref, orderBy('date', 'desc'))
-  return onSnapshot(q, (snap) => {
-    callback(snap.docs.map((d) => ({ ...d.data(), id: d.id } as SplitExpense)))
-  })
+  return onSnapshot(q,
+    (snap) => { callback(snap.docs.map((d) => ({ ...d.data(), id: d.id } as SplitExpense))) },
+    (err) => console.error('[firestore] getSplitExpenses snapshot error:', err.code, err.message)
+  )
 }
 
 export async function updateSplitBalance(groupId: string, uid: string, balanceData: Record<string, number>): Promise<void> {
