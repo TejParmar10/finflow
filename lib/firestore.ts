@@ -15,8 +15,9 @@ import {
   limit,
 } from 'firebase/firestore'
 import { db } from './firebase'
-import { Budget, Expense, Goal, Subscription } from '@/types'
+import { Budget, Expense, Goal, Subscription, SplitGroup, SplitExpense, SplitShare } from '@/types'
 import { format, subMonths } from 'date-fns'
+import { where } from 'firebase/firestore'
 
 export async function saveBudget(uid: string, month: string, data: Partial<Budget>) {
   const ref = doc(db, 'budgets', uid, 'months', month)
@@ -127,4 +128,92 @@ export async function getAllExpensesForMonths(uid: string, months: string[]): Pr
   return snap.docs
     .map((d) => ({ ...(d.data() as Omit<Expense, 'id'>), id: d.id } as Expense))
     .filter((e) => months.includes(e.month))
+}
+
+// ─── Splits ──────────────────────────────────────────────────────────────────
+
+export async function createSplitGroup(data: Omit<SplitGroup, 'id'>): Promise<string> {
+  const ref = collection(db, 'splitGroups')
+  const docRef = await addDoc(ref, { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
+  return docRef.id
+}
+
+export async function getSplitGroup(groupId: string): Promise<SplitGroup | null> {
+  const ref = doc(db, 'splitGroups', groupId)
+  const snap = await getDoc(ref)
+  return snap.exists() ? ({ ...snap.data(), id: snap.id } as SplitGroup) : null
+}
+
+export function getUserGroups(uid: string, callback: (groups: SplitGroup[]) => void): Unsubscribe {
+  const ref = collection(db, 'splitGroups')
+  const q = query(ref, orderBy('updatedAt', 'desc'))
+  return onSnapshot(q, (snap) => {
+    const groups = snap.docs
+      .map((d) => ({ ...d.data(), id: d.id } as SplitGroup))
+      .filter((g) => g.members?.some((m) => m.uid === uid) || g.createdBy === uid)
+    callback(groups)
+  })
+}
+
+export async function addSplitExpense(groupId: string, data: Omit<SplitExpense, 'id'>): Promise<string> {
+  const ref = collection(db, 'splitExpenses', groupId, 'items')
+  const docRef = await addDoc(ref, { ...data, createdAt: serverTimestamp() })
+  // Update group totalExpenses + updatedAt
+  const groupRef = doc(db, 'splitGroups', groupId)
+  const groupSnap = await getDoc(groupRef)
+  if (groupSnap.exists()) {
+    const current = groupSnap.data().totalExpenses ?? 0
+    await updateDoc(groupRef, { totalExpenses: current + data.amount, updatedAt: serverTimestamp() })
+  }
+  return docRef.id
+}
+
+export function getSplitExpenses(groupId: string, callback: (expenses: SplitExpense[]) => void): Unsubscribe {
+  const ref = collection(db, 'splitExpenses', groupId, 'items')
+  const q = query(ref, orderBy('date', 'desc'))
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map((d) => ({ ...d.data(), id: d.id } as SplitExpense)))
+  })
+}
+
+export async function updateSplitBalance(groupId: string, uid: string, balanceData: Record<string, number>): Promise<void> {
+  const ref = doc(db, 'splitBalances', groupId, 'balances', uid)
+  await setDoc(ref, { uid, balances: balanceData, updatedAt: serverTimestamp() }, { merge: true })
+}
+
+export async function getGroupBalances(groupId: string): Promise<Record<string, Record<string, number>>> {
+  const ref = collection(db, 'splitBalances', groupId, 'balances')
+  const snap = await getDocs(ref)
+  const result: Record<string, Record<string, number>> = {}
+  snap.docs.forEach((d) => { result[d.id] = d.data().balances ?? {} })
+  return result
+}
+
+export async function markShareSettled(groupId: string, expenseId: string, uid: string): Promise<void> {
+  const ref = doc(db, 'splitExpenses', groupId, 'items', expenseId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return
+  const expense = snap.data() as SplitExpense
+  const updatedSplits = expense.splits.map((s: SplitShare) =>
+    s.uid === uid ? { ...s, settled: true, settledAt: serverTimestamp() } : s
+  )
+  await updateDoc(ref, { splits: updatedSplits })
+}
+
+export async function findUserByEmail(email: string): Promise<{ uid: string; displayName: string; photoURL: string; upiId?: string } | null> {
+  const ref = collection(db, 'users')
+  const q = query(ref, where('email', '==', email), limit(1))
+  const snap = await getDocs(q)
+  if (snap.empty) return null
+  const d = snap.docs[0].data()
+  return { uid: snap.docs[0].id, displayName: d.displayName, photoURL: d.photoURL, upiId: d.upiId }
+}
+
+export async function findUserByPhone(phone: string): Promise<{ uid: string; displayName: string; photoURL: string; upiId?: string } | null> {
+  const ref = collection(db, 'users')
+  const q = query(ref, where('phone', '==', phone), limit(1))
+  const snap = await getDocs(q)
+  if (snap.empty) return null
+  const d = snap.docs[0].data()
+  return { uid: snap.docs[0].id, displayName: d.displayName, photoURL: d.photoURL, upiId: d.upiId }
 }

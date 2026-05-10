@@ -9,6 +9,7 @@ const SUGGESTIONS = [
   'Where am I overspending?',
   'How should I invest my savings?',
   'Will I exceed my budget this month?',
+  'Who owes me money?',
 ]
 
 interface Message {

@@ -5,6 +5,7 @@ export interface User {
   displayName: string
   email: string
   photoURL: string
+  upiId?: string
   createdAt: Timestamp
   preferences: { currency: 'INR'; theme: 'dark' }
 }
@@ -43,6 +44,8 @@ export interface Expense {
   importedFrom?: 'hdfc_statement'
   importedAt?: Timestamp
   receiptUrl?: string
+  isPersonalShare?: boolean  // true when auto-created from a split expense
+  splitId?: string           // groupId if isPersonalShare
   createdAt: Timestamp
 }
 
@@ -101,6 +104,70 @@ export interface AlertType {
   message: string
   category?: string
 }
+
+// ─── Splits ──────────────────────────────────────────────────────────────────
+
+export interface SplitMember {
+  uid: string | null        // null for non-FinFlow users
+  displayName: string
+  email?: string
+  phone?: string
+  photoURL?: string
+  upiId?: string
+  isFinFlowUser: boolean
+  joinedAt?: Timestamp
+}
+
+export interface SplitShare {
+  uid: string
+  amount: number
+  percent: number
+  settled: boolean
+  settledAt?: Timestamp
+}
+
+export interface SplitGroup {
+  id: string
+  name: string
+  description?: string
+  category: 'trip' | 'home' | 'food' | 'other'
+  createdBy: string        // uid
+  members: SplitMember[]
+  totalExpenses: number
+  createdAt: Timestamp
+  updatedAt: Timestamp
+  isActive: boolean
+}
+
+export interface SplitExpense {
+  id: string
+  groupId: string
+  description: string
+  amount: number
+  paidBy: string           // uid
+  category: string
+  splits: SplitShare[]
+  date: Timestamp
+  createdAt: Timestamp
+}
+
+export interface Balance {
+  fromUid: string
+  toUid: string
+  amount: number
+  groupId: string
+}
+
+export interface SimplifiedDebt {
+  fromUid: string
+  fromName: string
+  toUid: string
+  toName: string
+  toUpiId?: string
+  amount: number
+}
+
+// ─── Parsed Transactions ─────────────────────────────────────────────────────
 
 export interface ParsedTransaction {
   date: string

@@ -20,6 +20,8 @@ import { AlertBanner } from '@/components/tracker/AlertBanner'
 import { OnboardingModal } from '@/components/OnboardingModal'
 import { AIChat } from '@/components/chat/AIChat'
 import { AlertType } from '@/types'
+import { useSplits } from '@/hooks/useSplits'
+import Link from 'next/link'
 
 export default function DashboardPage() {
   const { user } = useAuthContext()
@@ -28,6 +30,7 @@ export default function DashboardPage() {
   const { budget, loading: budgetLoading, save: saveBudgetLocal } = useBudget(user?.uid ?? null)
   const { expenses } = useExpenses(user?.uid ?? null, month)
   const { goals } = useGoals(user?.uid ?? null)
+  const { groups } = useSplits(user?.uid ?? null)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [alerts, setAlerts] = useState<AlertType[]>([])
   const [rollover, setRollover] = useState(0)
@@ -163,6 +166,41 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+        {/* Splits balance widget */}
+        {groups.length > 0 && (() => {
+          const uid = user.uid
+          let totalOwed = 0   // others owe me
+          let totalOwe = 0    // I owe others
+          groups.forEach((g) => {
+            g.members?.forEach((m) => {
+              // Approximate from group-level — detail in /splits
+            })
+          })
+          return (
+            <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[16px] p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-text-primary">Split Expenses</h3>
+                <Link href="/splits" className="text-xs text-accent-teal hover:underline">View all →</Link>
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="bg-[rgba(0,200,150,0.08)] rounded-lg p-3">
+                  <p className="text-xs text-text-muted mb-1">Groups</p>
+                  <p className="text-lg font-serif text-accent-green">{groups.length}</p>
+                </div>
+                <div className="bg-[rgba(78,205,196,0.08)] rounded-lg p-3">
+                  <p className="text-xs text-text-muted mb-1">Total Spent</p>
+                  <p className="text-lg font-serif text-accent-teal">
+                    ₹{groups.reduce((s, g) => s + (g.totalExpenses ?? 0), 0).toLocaleString('en-IN')}
+                  </p>
+                </div>
+                <div className="bg-[rgba(255,255,255,0.04)] rounded-lg p-3">
+                  <p className="text-xs text-text-muted mb-1">Active</p>
+                  <p className="text-lg font-serif text-text-primary">{groups.filter((g) => g.isActive).length}</p>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
       </div>
 
       {idToken && (

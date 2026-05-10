@@ -10,6 +10,7 @@ import {
   Flag,
   FileText,
   LogOut,
+  Users,
 } from 'lucide-react'
 import Image from 'next/image'
 import { useAuth } from '@/hooks/useAuth'
@@ -17,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth'
 const NAV = [
   { href: '/dashboard', icon: LayoutGrid, label: 'Dashboard' },
   { href: '/tracker', icon: Target, label: 'Tracker' },
+  { href: '/splits', icon: Users, label: 'Splits' },
   { href: '/import', icon: Upload, label: 'Import Statement' },
   { href: '/insights', icon: BarChart2, label: 'Insights' },
   { href: '/goals', icon: Flag, label: 'Goals' },
