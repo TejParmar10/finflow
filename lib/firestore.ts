@@ -235,8 +235,25 @@ export async function findUserByPhone(phone: string): Promise<{ uid: string; dis
 }
 
 export async function updateUserUpiId(uid: string, upiId: string): Promise<void> {
-  const ref = doc(db, 'users', uid)
-  await updateDoc(ref, { upiId: upiId.trim() })
+  const trimmed = upiId.trim()
+  // 1. Save to user profile
+  const userRef = doc(db, 'users', uid)
+  await updateDoc(userRef, { upiId: trimmed })
+  // 2. Sync into every splitGroup where this user is a member
+  await syncUserUpiInGroups(uid, trimmed)
+}
+
+export async function syncUserUpiInGroups(uid: string, upiId: string): Promise<void> {
+  const ref = collection(db, 'splitGroups')
+  const snap = await getDocs(ref)
+  const updates: Promise<void>[] = []
+  snap.docs.forEach((d) => {
+    const members: { uid: string | null; upiId?: string }[] = d.data().members ?? []
+    if (!members.some((m) => m.uid === uid)) return
+    const updated = members.map((m) => m.uid === uid ? { ...m, upiId } : m)
+    updates.push(updateDoc(doc(db, 'splitGroups', d.id), { members: updated }))
+  })
+  await Promise.all(updates)
 }
 
 export async function deleteSplitGroup(groupId: string): Promise<void> {

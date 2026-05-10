@@ -5,6 +5,16 @@ import { X, Copy, CheckCircle } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { SimplifiedDebt } from '@/types'
 import { buildUpiLink, buildGPayLink, buildPhonePeLink, buildPaytmLink, isMobile } from '@/lib/upiLink'
+
+// Shows 9876*****@ybl in UI — full value still used for payments
+function maskUpi(upiId: string): string {
+  const at = upiId.indexOf('@')
+  if (at === -1) return upiId.slice(0, 4) + '*'.repeat(Math.max(0, upiId.length - 4))
+  const handle = upiId.slice(0, at)
+  const bank = upiId.slice(at)
+  const visible = Math.min(4, handle.length)
+  return handle.slice(0, visible) + '*'.repeat(Math.max(0, handle.length - visible)) + bank
+}
 import { Button } from '@/components/ui/Button'
 import toast from 'react-hot-toast'
 
@@ -79,8 +89,10 @@ export function SettleUpModal({ debt, groupId, onClose, onSettled }: SettleUpMod
                 <QRCodeSVG value={upiLink} size={160} />
               </div>
               <div className="flex items-center gap-2 bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] rounded-lg px-3 py-2 w-full">
-                <span className="text-sm text-text-primary flex-1 truncate">{debt.toUpiId}</span>
-                <button onClick={copyUpi} className="text-text-muted hover:text-accent-teal transition-colors">
+                <span className="text-sm text-text-primary flex-1 truncate font-mono">
+                  {maskUpi(debt.toUpiId!)}
+                </span>
+                <button onClick={copyUpi} title="Copy full UPI ID" className="text-text-muted hover:text-accent-teal transition-colors">
                   <Copy size={14} />
                 </button>
               </div>

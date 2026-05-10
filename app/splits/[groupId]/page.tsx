@@ -87,7 +87,10 @@ export default function GroupPage() {
 
   const handleSaveUpi = async () => {
     if (!user?.uid || !upiInput.trim()) { toast.error('Enter your UPI ID'); return }
-    await updateUserUpiId(user.uid, upiInput)
+    await updateUserUpiId(user.uid, upiInput) // syncs to all groups automatically
+    // Refresh group so BalanceSummary gets the updated member UPI
+    const updated = await getSplitGroup(groupId)
+    setGroup(updated)
     toast.success('UPI ID saved!')
     setShowUpiPrompt(false)
   }
