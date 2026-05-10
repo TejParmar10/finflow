@@ -9,7 +9,7 @@ import { useAuthContext } from '@/components/AuthProvider'
 import { useBudget } from '@/hooks/useBudget'
 import { useExpenses } from '@/hooks/useExpenses'
 import { useGoals } from '@/hooks/useGoals'
-import { saveBudget, getBudget } from '@/lib/firestore'
+import { saveBudget, getBudget, updateUserUpiId } from '@/lib/firestore'
 import { calculateCreditScore } from '@/lib/creditScore'
 import { AlertAgent } from '@/lib/alertAgent'
 import { SalaryInput } from '@/components/dashboard/SalaryInput'
@@ -58,7 +58,7 @@ export default function DashboardPage() {
     if ((budget.rolloverAmount ?? 0) > 0) setRollover(budget.rolloverAmount)
   }, [user, budget])
 
-  const handleOnboarding = async (salary: number, investPercent: number) => {
+  const handleOnboarding = async (salary: number, investPercent: number, upiId: string) => {
     if (!user?.uid) return
     const personalPercent = 100 - investPercent
     const investBudget = Math.round((salary * investPercent) / 100)
@@ -74,6 +74,7 @@ export default function DashboardPage() {
       createdAt: serverTimestamp() as any,
       updatedAt: serverTimestamp() as any,
     })
+    if (upiId.trim()) await updateUserUpiId(user.uid, upiId)
     setShowOnboarding(false)
     toast.success('Budget set up!')
     window.location.reload()

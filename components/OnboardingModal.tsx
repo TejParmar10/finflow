@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/Button'
 import toast from 'react-hot-toast'
 
 interface OnboardingModalProps {
-  onComplete: (salary: number, investPercent: number) => Promise<void>
+  onComplete: (salary: number, investPercent: number, upiId: string) => Promise<void>
 }
 
 export function OnboardingModal({ onComplete }: OnboardingModalProps) {
   const [salary, setSalary] = useState(50000)
   const [investPct, setInvestPct] = useState(30)
+  const [upiId, setUpiId] = useState('')
   const [loading, setLoading] = useState(false)
 
   const personalPct = 100 - investPct
@@ -19,7 +20,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
     if (salary < 10000) { toast.error('Minimum salary is ₹10,000'); return }
     setLoading(true)
     try {
-      await onComplete(salary, investPct)
+      await onComplete(salary, investPct, upiId)
     } catch {
       toast.error('Failed to save preferences')
     } finally {
@@ -81,6 +82,20 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
               <p className="text-text-muted text-xs">₹{Math.round((salary * personalPct) / 100).toLocaleString('en-IN')}</p>
             </div>
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs text-[rgba(255,255,255,0.5)] font-medium uppercase tracking-wide block">
+            UPI ID <span className="normal-case text-text-muted font-normal">(optional — needed for Split payments)</span>
+          </label>
+          <input
+            type="text"
+            placeholder="yourname@upi or phone@bank"
+            value={upiId}
+            onChange={(e) => setUpiId(e.target.value)}
+            className="w-full bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] rounded-lg px-3 py-2 text-text-primary text-sm placeholder:text-[rgba(255,255,255,0.25)] focus:outline-none focus:border-accent-teal"
+          />
+          <p className="text-xs text-text-muted">e.g. 9876543210@ybl · You can add or change this later</p>
         </div>
 
         <Button onClick={handleSubmit} disabled={loading} className="w-full" size="lg">

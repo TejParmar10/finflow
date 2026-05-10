@@ -233,3 +233,25 @@ export async function findUserByPhone(phone: string): Promise<{ uid: string; dis
   const d = snap.docs[0].data()
   return { uid: snap.docs[0].id, displayName: d.displayName, photoURL: d.photoURL, upiId: d.upiId }
 }
+
+export async function updateUserUpiId(uid: string, upiId: string): Promise<void> {
+  const ref = doc(db, 'users', uid)
+  await updateDoc(ref, { upiId: upiId.trim() })
+}
+
+export async function deleteSplitGroup(groupId: string): Promise<void> {
+  const ref = doc(db, 'splitGroups', groupId)
+  await deleteDoc(ref)
+}
+
+export async function addMembersToGroup(groupId: string, newMembers: import('@/types').SplitMember[]): Promise<void> {
+  const ref = doc(db, 'splitGroups', groupId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return
+  const existing: import('@/types').SplitMember[] = snap.data().members ?? []
+  const existingUids = new Set(existing.map((m) => m.uid ?? m.displayName))
+  const toAdd = newMembers.filter((m) => !existingUids.has(m.uid ?? m.displayName))
+  if (toAdd.length === 0) return
+  const cleaned = JSON.parse(JSON.stringify([...existing, ...toAdd]))
+  await updateDoc(ref, { members: cleaned, updatedAt: serverTimestamp() })
+}
