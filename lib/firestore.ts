@@ -216,6 +216,31 @@ export async function markShareSettled(groupId: string, expenseId: string, uid: 
   await updateDoc(ref, { splits: updatedSplits })
 }
 
+// Marks ALL unsettled shares from payerUid in expenses paid by payeeUid
+export async function settleAllSharesBetween(
+  groupId: string,
+  payerUid: string,
+  payeeUid: string,
+  expenseIds: string[]
+): Promise<void> {
+  await Promise.all(
+    expenseIds.map(async (expId) => {
+      const ref = doc(db, 'splitExpenses', groupId, 'items', expId)
+      const snap = await getDoc(ref)
+      if (!snap.exists()) return
+      const expense = snap.data() as SplitExpense
+      // Only settle if this expense was paid by payeeUid and payerUid has an unsettled share
+      if (expense.paidBy !== payeeUid) return
+      const hasUnsettled = expense.splits.some((s: SplitShare) => s.uid === payerUid && !s.settled)
+      if (!hasUnsettled) return
+      const updated = expense.splits.map((s: SplitShare) =>
+        s.uid === payerUid ? { ...s, settled: true, settledAt: serverTimestamp() } : s
+      )
+      await updateDoc(ref, { splits: updated })
+    })
+  )
+}
+
 export async function getUserProfile(uid: string): Promise<{ uid: string; displayName: string; photoURL?: string; upiId?: string } | null> {
   const ref = doc(db, 'users', uid)
   const snap = await getDoc(ref)

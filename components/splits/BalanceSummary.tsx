@@ -129,6 +129,7 @@ export function BalanceSummary({ group, expenses, currentUid, upiMap = {} }: Bal
           debt={settleTarget}
           groupId={group.id}
           payerUid={currentUid}
+          expenses={expenses}
           onClose={() => setSettleTarget(null)}
           onSettled={() => setSettleTarget(null)}
         />

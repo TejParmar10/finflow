@@ -5,7 +5,8 @@ import { X, Copy, CheckCircle } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { SimplifiedDebt } from '@/types'
 import { buildUpiLink, buildGPayLink, buildPhonePeLink, buildPaytmLink, isMobile } from '@/lib/upiLink'
-import { markShareSettled } from '@/lib/firestore'
+import { settleAllSharesBetween } from '@/lib/firestore'
+import { SplitExpense } from '@/types'
 import { Button } from '@/components/ui/Button'
 import toast from 'react-hot-toast'
 
@@ -21,13 +22,13 @@ function maskUpi(upiId: string): string {
 interface SettleUpModalProps {
   debt: SimplifiedDebt
   groupId: string
-  expenseId?: string   // if known, marks that specific share settled
   payerUid: string
+  expenses: SplitExpense[]   // all group expenses — used to find which to mark settled
   onClose: () => void
   onSettled?: () => void
 }
 
-export function SettleUpModal({ debt, groupId, expenseId, payerUid, onClose, onSettled }: SettleUpModalProps) {
+export function SettleUpModal({ debt, groupId, payerUid, expenses, onClose, onSettled }: SettleUpModalProps) {
   const [appOpened, setAppOpened] = useState(false)
   const [settling, setSettling] = useState(false)
   const [done, setDone] = useState(false)
@@ -54,13 +55,11 @@ export function SettleUpModal({ debt, groupId, expenseId, payerUid, onClose, onS
   const handleMarkPaid = async () => {
     setSettling(true)
     try {
-      // Mark settled in Firestore if we have a specific expenseId
-      if (expenseId) {
-        await markShareSettled(groupId, expenseId, payerUid)
-      }
+      // Mark all unsettled shares from payerUid in expenses paid by debt.toUid
+      const expenseIds = expenses.map((e) => e.id)
+      await settleAllSharesBetween(groupId, payerUid, debt.toUid, expenseIds)
       setDone(true)
       onSettled?.()
-      // Auto-close after animation
       setTimeout(() => onClose(), 2200)
     } catch (e) {
       console.error(e)
