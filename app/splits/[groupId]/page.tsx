@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { format } from 'date-fns'
 import { Timestamp } from 'firebase/firestore'
 import { useAuthContext } from '@/components/AuthProvider'
-import { getSplitExpenses, deleteSplitGroup, addMembersToGroup, updateUserUpiId } from '@/lib/firestore'
+import { getSplitExpenses, deleteSplitGroup, addMembersToGroup, updateUserUpiId, getUserProfile } from '@/lib/firestore'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useSplits } from '@/hooks/useSplits'
@@ -42,6 +42,9 @@ export default function GroupPage() {
   const [loadingGroup, setLoadingGroup] = useState(true)
   const [savingMembers, setSavingMembers] = useState(false)
   const [idToken, setIdToken] = useState('')
+  // Fresh UPI IDs fetched directly from users collection — never stale
+  const [upiMap, setUpiMap] = useState<Record<string, string>>({})
+  const [myUpiId, setMyUpiId] = useState<string | null>(null)
 
   const { addExpense } = useSplits(user?.uid ?? null)
   const { budget } = useBudget(user?.uid ?? null)
@@ -49,6 +52,18 @@ export default function GroupPage() {
 
   useEffect(() => { if (!user) router.replace('/') }, [user, router])
   useEffect(() => { user?.getIdToken().then(setIdToken) }, [user])
+
+  // Fetch fresh UPI IDs for all FinFlow members directly from users collection
+  useEffect(() => {
+    if (!group || !user) return
+    const finflowMembers = group.members.filter((m) => m.uid && m.isFinFlowUser)
+    Promise.all(finflowMembers.map((m) => getUserProfile(m.uid!))).then((profiles) => {
+      const map: Record<string, string> = {}
+      profiles.forEach((p) => { if (p?.upiId) map[p.uid] = p.upiId })
+      setUpiMap(map)
+      if (map[user.uid]) setMyUpiId(map[user.uid])
+    })
+  }, [group, user])
 
   useEffect(() => {
     if (!groupId) return
@@ -96,7 +111,9 @@ export default function GroupPage() {
 
   const handleSaveUpi = async () => {
     if (!user?.uid || !upiInput.trim()) { toast.error('Enter your UPI ID'); return }
-    await updateUserUpiId(user.uid, upiInput) // syncs to all groups → onSnapshot auto-refreshes
+    await updateUserUpiId(user.uid, upiInput)
+    setMyUpiId(upiInput.trim())
+    setUpiMap((prev) => ({ ...prev, [user.uid]: upiInput.trim() }))
     toast.success('UPI ID saved!')
     setShowUpiPrompt(false)
   }
@@ -150,15 +167,15 @@ export default function GroupPage() {
           </div>
         </div>
 
-        {/* UPI ID missing banner */}
-        {!showUpiPrompt ? (
+        {/* UPI ID banner — only shown if user hasn't added one yet */}
+        {!myUpiId && !showUpiPrompt ? (
           <div className="flex items-center justify-between bg-[rgba(255,230,109,0.08)] border border-[rgba(255,230,109,0.15)] rounded-xl px-4 py-3">
             <p className="text-sm text-accent-yellow">⚡ Add your UPI ID so others can pay you easily</p>
             <button onClick={() => setShowUpiPrompt(true)} className="text-xs text-accent-teal hover:underline ml-3 flex-shrink-0">
               Add UPI ID
             </button>
           </div>
-        ) : (
+        ) : showUpiPrompt ? (
           <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-xl px-4 py-3 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-text-primary">Your UPI ID</p>
@@ -175,7 +192,7 @@ export default function GroupPage() {
               <Button size="sm" onClick={handleSaveUpi}>Save</Button>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
@@ -199,7 +216,7 @@ export default function GroupPage() {
         {/* Balances */}
         <Card>
           <h3 className="text-sm font-semibold text-text-primary mb-4">Balances</h3>
-          <BalanceSummary group={group} expenses={expenses} currentUid={user.uid} />
+          <BalanceSummary group={group} expenses={expenses} currentUid={user.uid} upiMap={upiMap} />
         </Card>
 
         {/* Expense list */}

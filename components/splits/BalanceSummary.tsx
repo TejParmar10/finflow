@@ -10,9 +10,10 @@ interface BalanceSummaryProps {
   group: SplitGroup
   expenses: SplitExpense[]
   currentUid: string
+  upiMap?: Record<string, string>  // fresh UPI IDs from users collection
 }
 
-export function BalanceSummary({ group, expenses, currentUid }: BalanceSummaryProps) {
+export function BalanceSummary({ group, expenses, currentUid, upiMap = {} }: BalanceSummaryProps) {
   const [simplified, setSimplified] = useState<SimplifiedDebt[] | null>(null)
   const [settleTarget, setSettleTarget] = useState<SimplifiedDebt | null>(null)
 
@@ -35,7 +36,10 @@ export function BalanceSummary({ group, expenses, currentUid }: BalanceSummaryPr
 
   const memberMap: Record<string, { name: string; upiId?: string }> = {}
   group.members.forEach((m) => {
-    if (m.uid) memberMap[m.uid] = { name: m.displayName, upiId: m.upiId }
+    if (m.uid) memberMap[m.uid] = {
+      name: m.displayName,
+      upiId: upiMap[m.uid] ?? m.upiId  // prefer fresh value
+    }
   })
 
   const myBalance = net[currentUid] ?? 0
@@ -78,7 +82,12 @@ export function BalanceSummary({ group, expenses, currentUid }: BalanceSummaryPr
                   {diff > 0 ? `owes you ₹${diff.toLocaleString('en-IN')}` : `you owe ₹${Math.abs(diff).toLocaleString('en-IN')}`}
                 </span>
                 {diff < 0 && (
-                  <Button size="sm" onClick={() => setSettleTarget({ fromUid: currentUid, fromName: 'You', toUid: m.uid!, toName: m.displayName, toUpiId: m.upiId, amount: Math.abs(diff) })}>
+                  <Button size="sm" onClick={() => setSettleTarget({
+                    fromUid: currentUid, fromName: 'You',
+                    toUid: m.uid!, toName: m.displayName,
+                    toUpiId: upiMap[m.uid!] ?? m.upiId,  // fresh from users collection
+                    amount: Math.abs(diff)
+                  })}>
                     Settle
                   </Button>
                 )}

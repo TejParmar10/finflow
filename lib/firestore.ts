@@ -216,6 +216,14 @@ export async function markShareSettled(groupId: string, expenseId: string, uid: 
   await updateDoc(ref, { splits: updatedSplits })
 }
 
+export async function getUserProfile(uid: string): Promise<{ uid: string; displayName: string; photoURL?: string; upiId?: string } | null> {
+  const ref = doc(db, 'users', uid)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return null
+  const d = snap.data()
+  return { uid, displayName: d.displayName, photoURL: d.photoURL, upiId: d.upiId }
+}
+
 export async function findUserByEmail(email: string): Promise<{ uid: string; displayName: string; photoURL: string; upiId?: string } | null> {
   const ref = collection(db, 'users')
   const q = query(ref, where('email', '==', email), limit(1))
