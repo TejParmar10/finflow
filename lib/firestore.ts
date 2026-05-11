@@ -8,6 +8,7 @@ import {
   deleteDoc,
   onSnapshot,
   serverTimestamp,
+  Timestamp,
   query,
   orderBy,
   Unsubscribe,
@@ -210,8 +211,9 @@ export async function markShareSettled(groupId: string, expenseId: string, uid: 
   const snap = await getDoc(ref)
   if (!snap.exists()) return
   const expense = snap.data() as SplitExpense
+  const now = Timestamp.fromDate(new Date())  // serverTimestamp() not allowed inside arrays
   const updatedSplits = expense.splits.map((s: SplitShare) =>
-    s.uid === uid ? { ...s, settled: true, settledAt: serverTimestamp() } : s
+    s.uid === uid ? { ...s, settled: true, settledAt: now } : s
   )
   await updateDoc(ref, { splits: updatedSplits })
 }
@@ -233,8 +235,9 @@ export async function settleAllSharesBetween(
       if (expense.paidBy !== payeeUid) return
       const hasUnsettled = expense.splits.some((s: SplitShare) => s.uid === payerUid && !s.settled)
       if (!hasUnsettled) return
+      const now = Timestamp.fromDate(new Date())
       const updated = expense.splits.map((s: SplitShare) =>
-        s.uid === payerUid ? { ...s, settled: true, settledAt: serverTimestamp() } : s
+        s.uid === payerUid ? { ...s, settled: true, settledAt: now } : s
       )
       await updateDoc(ref, { splits: updated })
     })
