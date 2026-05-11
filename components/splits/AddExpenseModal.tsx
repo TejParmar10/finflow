@@ -68,12 +68,12 @@ export function AddExpenseModal({ group, currentUid, month, onAdd, onClose }: Ad
         createdAt: serverTimestamp() as unknown as Timestamp,
       })
 
-      // Auto-create personal expense for current user
+      // Auto-track the current user's share in personal Tracker
       const myShare = splits.find((s) => s.uid === currentUid)
-      if (myShare && myShare.amount > 0 && paidBy !== currentUid) {
+      if (myShare && myShare.amount > 0) {
         await addExpense(currentUid, {
           category, amount: myShare.amount,
-          description: `[Group: ${group.name}] ${desc.trim()}`,
+          description: `[Split: ${group.name}] ${desc.trim()}`,
           date: Timestamp.fromDate(expDate),
           month, week: Math.ceil(expDate.getDate() / 7),
           aiCategorised: false,

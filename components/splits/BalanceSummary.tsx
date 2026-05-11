@@ -85,7 +85,7 @@ export function BalanceSummary({ group, expenses, currentUid, upiMap = {} }: Bal
                   <Button size="sm" onClick={() => setSettleTarget({
                     fromUid: currentUid, fromName: 'You',
                     toUid: m.uid!, toName: m.displayName,
-                    toUpiId: upiMap[m.uid!] ?? m.upiId,  // fresh from users collection
+                    toUpiId: upiMap[m.uid!] ?? m.upiId,
                     amount: Math.abs(diff)
                   })}>
                     Settle
@@ -128,7 +128,9 @@ export function BalanceSummary({ group, expenses, currentUid, upiMap = {} }: Bal
         <SettleUpModal
           debt={settleTarget}
           groupId={group.id}
+          payerUid={currentUid}
           onClose={() => setSettleTarget(null)}
+          onSettled={() => setSettleTarget(null)}
         />
       )}
     </div>

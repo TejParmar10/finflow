@@ -68,6 +68,11 @@ export function CategoryCard({ category, expenses, personalBudget, onDelete }: C
                     Imported
                   </span>
                 )}
+                {e.isPersonalShare && (
+                  <span className="text-[11px] text-[rgba(168,85,247,0.8)] border border-[rgba(168,85,247,0.25)] rounded-full px-1.5 py-0.5 leading-none flex-shrink-0">
+                    Split
+                  </span>
+                )}
               </div>
               <span className="text-xs text-text-muted flex-shrink-0">{format(toDate(e.date), 'dd MMM')}</span>
               <span className="text-xs font-medium text-text-primary flex-shrink-0">₹{e.amount.toLocaleString('en-IN')}</span>
